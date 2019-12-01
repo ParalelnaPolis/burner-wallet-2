@@ -11,10 +11,12 @@
     "build:esm": "lerna exec --stream --parallel -- ../../node_modules/.bin/tsc --outDir dist/esm --module esnext --target esnext",
     "lint": "eslint '*/**/*.{js,ts,tsx}'",
     "start-basic": "lerna run --parallel start-basic",
-    "start-local": "lerna run --parallel start-local"
+    "start-local": "lerna run --parallel start-local",
+    "start-ppba": "lerna run --parallel start-ppba"
   },
   "workspaces": [
     "basic-wallet",
+    "ppba-wallet",
     "exchange",
     "local-wallet",
     "packages/*"
@@ -28,6 +30,7 @@
     "ts-node": "^8.5.2"
   },
   "dependencies": {
+    "@burner-wallet/modern-ui": "^1.0.0",
     "typescript": "3.5.1"
   }
 }
