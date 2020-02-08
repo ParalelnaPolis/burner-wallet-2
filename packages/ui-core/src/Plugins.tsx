@@ -1,11 +1,27 @@
+import React, { ComponentType } from 'react';
+import { useTranslation } from 'react-i18next';
 import {
   AccountSearchFn, BurnerPluginContext, BurnerPluginData, Plugin, AddressToNameResolver,
-  PluginActionContext, PluginElement, PluginPage, QRScannedFn, SendData, TXSentFn
+  PluginActionContext, PluginElement, PluginPage, QRScannedFn, SendData, TXSentFn,
+  PluginMessageListener, BurnerContext, Diff, Translations
 } from '@burner-wallet/types';
-import { withBurner } from './BurnerProvider';
+export { BurnerPluginData } from '@burner-wallet/types';
+import { withBurner, SubProvider } from './BurnerProvider';
 import BurnerUICore from './BurnerUICore';
+import i18n from './i18n';
 
-export type BurnerPluginData = BurnerPluginData;
+const wrapComponent = <T extends BurnerContext>(Component: ComponentType<T>, plugin: Plugin) => {
+  const WrappedComponent: React.FC<Diff<T, BurnerContext>> = (props) => {
+    const { t } = useTranslation(plugin.id);
+    const InnerWrappedComponent = withBurner(Component);
+    return (
+      <SubProvider t={t}>
+        <InnerWrappedComponent plugin={plugin} {...props} />
+      </SubProvider>
+    );
+  };
+  return WrappedComponent;
+}
 
 export const DEFAULT_PLUGIN_DATA = {
   pages: [],
@@ -24,12 +40,14 @@ export default class Plugins {
   private pluginData: BurnerPluginData;
   private addressToNameResolvers: AddressToNameResolver[];
   private ui: BurnerUICore;
+  private messageListeners: { [topic: string]: PluginMessageListener[] };
 
   constructor(plugins: Plugin[], ui: BurnerUICore) {
     this.changeListeners = [];
     this.sentHandlers = [];
     this.qrHandlers = [];
     this.addressToNameResolvers = [];
+    this.messageListeners = {};
 
     this.ui = ui;
     this.pluginData = {
@@ -64,8 +82,12 @@ export default class Plugins {
         this.addPluginButton(plugin, 'home', title, path, options),
       addAddressToNameResolver: (callback: AddressToNameResolver) =>
         this.addressToNameResolvers.push(callback),
+      addTranslations: (translations: Translations) => this.addTranslations(plugin, translations),
       getAssets: () => this.ui.getAssets(),
       getWeb3: (network: string, options?: any) => this.ui.getCore().getWeb3(network, options),
+      sendPluginMessage: (topic: string, ...message: any[]) =>
+        (this.messageListeners[topic] || []).map((listener: PluginMessageListener) => listener(...message)),
+      onPluginMessage: (topic: string, listener: PluginMessageListener) => this.addMessageListener(topic, listener),
     };
   }
 
@@ -78,7 +100,7 @@ export default class Plugins {
   }
 
   addPluginPage(plugin: Plugin, path: string, Component: PluginPage) {
-    const WrappedComponent = withBurner(Component);
+    const WrappedComponent = wrapComponent(Component, plugin);
     this.setPluginData({
       pages: [...this.pluginData.pages, { plugin, path, Component: WrappedComponent }],
     });
@@ -95,7 +117,7 @@ export default class Plugins {
   }
 
   addPluginElement(plugin: Plugin, position: string, Component: PluginElement, options?: any) {
-    const WrappedComponent = withBurner(Component);
+    const WrappedComponent = wrapComponent(Component, plugin);
     const existingElements = this.pluginData.elements[position] || [];
     this.setPluginData({
       elements: {
@@ -105,10 +127,22 @@ export default class Plugins {
     });
   }
 
+  addTranslations(plugin: Plugin, translations: Translations) {
+    if (!plugin.id) {
+      throw new Error('Can not add translations without plugin ID');
+    }
+    Object.entries(translations)
+      .forEach(([lang, resources]) => i18n.addResources(lang, plugin.id!, resources));
+  }
+
   addAccountSearch(callback: AccountSearchFn) {
     this.setPluginData({
       accountSearches: [...this.pluginData.accountSearches, callback],
     });
+  }
+
+  addMessageListener(topic: string, callback: PluginMessageListener) {
+    this.messageListeners[topic] = [...(this.messageListeners[topic] || []), callback];
   }
 
   async getAddressName(address: string) {

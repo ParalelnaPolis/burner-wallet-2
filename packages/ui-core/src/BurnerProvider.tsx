@@ -1,19 +1,23 @@
-import React, { Component, ComponentType } from 'react';
+import React, { Component, ComponentType, useContext } from 'react';
 import { withRouter, RouteComponentProps } from 'react-router-dom';
+import { withTranslation, WithTranslation } from 'react-i18next';
 import BurnerCore from '@burner-wallet/core';
 import {
   Diff, BurnerComponents, BurnerContext, BurnerPluginData, SendData, Actions, HistoryEventCallback
 } from '@burner-wallet/types';
+export { BurnerContext } from '@burner-wallet/types';
 import { DEFAULT_PLUGIN_DATA } from './Plugins';
 
 const ZERO_ADDR = '0x0000000000000000000000000000000000000000';
 
-interface BurnerProviderProps extends RouteComponentProps {
+interface BaseBurnerProviderProps {
   core: BurnerCore;
   pluginData: BurnerPluginData;
   children: React.ReactNode;
   burnerComponents: BurnerComponents;
 }
+
+type BurnerProviderProps = BaseBurnerProviderProps & WithTranslation & RouteComponentProps;
 
 interface BurnerProviderState {
   accounts: string[];
@@ -21,10 +25,8 @@ interface BurnerProviderState {
   loading: string | null;
 }
 
-export type BurnerContext = BurnerContext;
-
 const unavailable = () => { throw new Error('Unavailable') };
-const { Provider, Consumer } = React.createContext<BurnerContext>({
+export const context = React.createContext<BurnerContext>({
   actions: {
     callSigner: unavailable,
     canCallSigner: unavailable,
@@ -47,7 +49,10 @@ const { Provider, Consumer } = React.createContext<BurnerContext>({
   BurnerComponents: {} as BurnerComponents,
   completeScan: null,
   loading: null,
+  t: (key: string) => key,
 });
+
+const { Provider, Consumer } = context;
 
 const ADDRESS_REGEX = /^(?:0x)?[0-9a-f]{40}$/i;
 const PK_REGEX = /^(?:https?:\/\/[-a-z.]+\/pk#)?((?:0x)?[0-9a-f]{64})$/i;
@@ -135,7 +140,7 @@ class BurnerProvider extends Component<BurnerProviderProps, BurnerProviderState>
   }
 
   render() {
-    const { core, pluginData, children, burnerComponents } = this.props;
+    const { core, pluginData, children, burnerComponents, t } = this.props;
     const { accounts, completeScan, loading } = this.state;
     return (
       <Provider value={{
@@ -148,6 +153,7 @@ class BurnerProvider extends Component<BurnerProviderProps, BurnerProviderState>
         defaultAccount: accounts.length > 0 ? accounts[0] : ZERO_ADDR,
         pluginData,
         loading,
+        t,
       }}>
         {accounts.length > 0 && children}
       </Provider>
@@ -155,7 +161,7 @@ class BurnerProvider extends Component<BurnerProviderProps, BurnerProviderState>
   }
 }
 
-export default withRouter(BurnerProvider);
+export default withTranslation()(withRouter(BurnerProvider));
 
 export function withBurner<P>(WrappedComponent: ComponentType<P>): ComponentType<Diff<P, BurnerContext>> {
   return function BurnerHLC(props) {
@@ -166,3 +172,19 @@ export function withBurner<P>(WrappedComponent: ComponentType<P>): ComponentType
     )
   }
 }
+
+export function useBurner() {
+  return useContext(context);
+}
+
+export const SubProvider: React.FC<Partial<BurnerContext>> = ({ children, ...props }) => {
+  const value: BurnerContext = {
+    ...useBurner(),
+    ...(props as Partial<BurnerContext>),
+  };
+  return (
+    <Provider value={value}>
+      {children}
+    </Provider>
+  )
+};

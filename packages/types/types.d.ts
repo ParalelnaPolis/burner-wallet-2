@@ -1,9 +1,14 @@
 import { ComponentType } from 'react';
 import { Asset } from '@burner-wallet/assets';
-import HistoryEvent from '@burner-wallet/core/HistoryEvent';
+export { Asset } from '@burner-wallet/assets';
+import { HistoryEvent } from '@burner-wallet/core';
+export { HistoryEvent } from '@burner-wallet/core';
+import { TFunction } from 'i18next';
 
 import BurnerUIComponents from './BurnerUIComponents';
+export { default as BurnerUIComponents } from './BurnerUIComponents';
 import DataProviders from './DataProviders';
+export { default as DataProviders } from './DataProviders';
 import { BurnerPluginData } from './Plugins';
 
 export {
@@ -19,7 +24,7 @@ export {
 export {
   Plugin, PluginActionContext, PluginPageContext, PluginElementContext, PluginPage, PluginElement,
   PluginElementData, AccountSearchFn, QRScannedFn, TXSentFn, BurnerPluginContext, BurnerPluginData,
-  PluginButtonProps, PluginButtonData, AddressToNameResolver
+  PluginButtonProps, PluginButtonData, AddressToNameResolver, PluginMessageListener, Translations
 } from './Plugins';
 
 export type Omit<T, K> = Pick<T, Exclude<keyof T, K>>;
@@ -56,12 +61,9 @@ export interface BurnerContext {
   pluginData: BurnerPluginData;
   completeScan: ((result: string | null) => any) | null;
   loading: string | null;
+  t: TFunction;
 }
 
-export type Asset = Asset;
-export type HistoryEvent = HistoryEvent;
-export type BurnerUIComponents = BurnerUIComponents;
-export type DataProviders = DataProviders;
 export type BurnerComponents = BurnerUIComponents & DataProviders;
 
 export type HistoryEventCallback = (event: HistoryEvent) => void;
@@ -81,4 +83,5 @@ export interface SendData {
   id?: string | null;
   hash?: string;
   receipt?: any;
+  timestamp?: number;
 }
